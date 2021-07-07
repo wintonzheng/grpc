@@ -16,9 +16,10 @@
 import logging
 import asyncio
 import grpc
-
 import helloworld_pb2
 import helloworld_pb2_grpc
+_STREAM_STREAM_ASYNC_GEN = '/test/StreamStreamAsyncGen'
+_REQUEST = b'\x00\x00\x00'
 
 
 class Greeter(helloworld_pb2_grpc.GreeterServicer):
@@ -28,13 +29,21 @@ class Greeter(helloworld_pb2_grpc.GreeterServicer):
                       ) -> helloworld_pb2.HelloReply:
         return helloworld_pb2.HelloReply(message='Hello, %s!' % request.name)
 
+    async def SayHelloStreaming(self, request_iterator, context):
+        async for request in request_iterator:
+            print(f"hello {request.name}")
+            # business logic
+            yield helloworld_pb2.HelloReply(message=f'Hello {request.name}')
+
+
 
 async def serve() -> None:
     server = grpc.aio.server()
     helloworld_pb2_grpc.add_GreeterServicer_to_server(Greeter(), server)
     listen_addr = '[::]:50051'
-    server.add_insecure_port(listen_addr)
-    logging.info("Starting server on %s", listen_addr)
+    port = server.add_insecure_port(listen_addr)
+    addr = 'localhost:%d' % port
+    logging.info(f"Starting server on {listen_addr}, addr {addr}")
     await server.start()
     try:
         await server.wait_for_termination()
